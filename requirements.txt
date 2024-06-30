@@ -1,0 +1,6 @@
+pyglet
+torch
+torchvision
+torchmetrics
+jupyter
+matplotlib
