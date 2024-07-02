@@ -4,6 +4,19 @@ from pyglet.window import key
 import model
 from model import TinyVGG
 
+class ProgressBar():
+    def __init__(self, x, y, width, height, color=(255, 255, 255, 255), bgcolor=(128, 128, 128, 255), status=0.0):
+        self.x, self.y = x, y
+        self.width, self.height = width, height
+        self.color, self.bgcolor = color, bgcolor
+        self.status = status
+
+    def draw(self):
+        background = pyglet.shapes.Rectangle(self.x, self.y, self.width, self.height, self.bgcolor)
+        foreground = pyglet.shapes.Rectangle(self.x, self.y, self.width*self.status, self.height, self.color)
+        background.draw()
+        foreground.draw()
+
 class MainWindow(pyglet.window.Window):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -13,12 +26,11 @@ class MainWindow(pyglet.window.Window):
         self.grid_cell_size = 15
         self.cells = [[0 for _ in range(self.grid_size[0])] for _ in range(self.grid_size[1])]
 
+        self.labels = []
         self.notes = [
             pyglet.text.Label(x=self.width-320, y=self.height-30, text="Made by Nick Kipshidze", font_name="monospace", font_size=18, bold=True),
             pyglet.text.Label(x=10, y=self.height-30, text="Press C to clear the grid", font_name="monospace", font_size=16)
         ]
-        self.prediction_label = pyglet.text.Label(x=500, y=200, text="Model prediction", font_name="monospace", font_size=18)
-        self.prediction_prob = pyglet.text.Label(x=500, y=250, text="Model prediction", font_name="monospace", font_size=18)
 
         self.model = model.Model("tinyvgg-trained.pth")
 
@@ -69,10 +81,11 @@ class MainWindow(pyglet.window.Window):
         self.draw_grid(self.grid_size, self.grid_offsets, self.grid_cell_size)
         self.draw_cells()
 
-        self.prediction_label.draw()
-        self.prediction_prob.draw()
         for note in self.notes:
             note.draw()
+
+        for label in self.labels:
+            label.draw()
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         relative = self.grid_coords((x, y))
@@ -85,11 +98,27 @@ class MainWindow(pyglet.window.Window):
     def on_key_press(self, symbol, modifiers):
         if symbol == key.C:
             self.cells = [[0 for _ in range(self.grid_size[0])] for _ in range(self.grid_size[1])]
+        
+    def draw_predictions(self, class_names, probabilities, offsets=(550, 110)):
+        self.labels = []
+        for index, (label, prob) in enumerate(zip(class_names, probabilities)):
+            self.labels.append(
+                pyglet.text.Label(x=offsets[0], y=index*35+offsets[1], text=label, bold=True)
+            )
+            self.labels.append(
+                pyglet.text.Label(x=offsets[0]+100, y=index*35+offsets[1], text=round(prob, 4).__str__())
+            )
+            self.labels.append(
+                ProgressBar(x=offsets[0]+200, y=index*35+offsets[1], width=200, height=15, status=prob)
+            )
+        argmax = probabilities.index(max(probabilities))
+        self.labels.append(
+            pyglet.text.Label(x=offsets[0], y=offsets[1]-60, text=f"Final prediction: {class_names[argmax]}", bold=True)
+        )
 
     def predict_model(self, dt):
-        pred_label, pred_prob = self.model.predict(self.cells)
-        self.prediction_label.text = f"Prediction: {pred_label}"
-        self.prediction_prob.text = f"Certainty: {pred_prob:.2f}%"
+        class_names, probabilities = self.model.predict(self.cells)
+        self.draw_predictions(class_names, probabilities)
 
 window = MainWindow(
     width=1024,
