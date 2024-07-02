@@ -43,7 +43,4 @@ class Model:
         X = torch.Tensor(X).reshape(28, 28).unsqueeze(0).unsqueeze(0) / 255
         X = X.flip(2)
         y_logits = self.model.forward(X)
-        y_pred = y_logits.argmax(dim=1)
-        y_label = self.class_names[y_pred.item()]
-        y_accuracy = y_logits[0][y_pred].item() * 100
-        return y_label, y_accuracy
+        return self.class_names, y_logits[0].tolist()
